@@ -21,6 +21,7 @@ from braindecode.preprocessing.preprocess import (
     Preprocessor,
     _replace_inplace,
     _set_preproc_kwargs,
+    differential_entropy,
     exponential_moving_demean,
     exponential_moving_standardize,
     filterbank,
@@ -780,3 +781,15 @@ def test_serialization(preprocessor_name, args, kwargs):
         assert preprocessor._same_attr(deserialized, attr), err_msg
     # Identical to above:
     assert preprocessor == deserialized
+
+
+def test_differential_entropy(base_concat_ds):
+    base_concat_ds = base_concat_ds.split([[0]])["0"]
+    raw = base_concat_ds.datasets[0].raw
+    frequency_bands = [(1, 3), (4, 7), (8, 13), (14, 30), (31, 50)]
+    n_channels = len(raw.ch_names)
+
+    de_raw = differential_entropy(raw, frequency_bands=frequency_bands)
+
+    assert de_raw.get_data().shape == (n_channels, len(frequency_bands))
+    assert np.all(np.isfinite(de_raw.get_data()))

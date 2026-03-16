@@ -594,3 +594,64 @@ def filterbank(
         raw.reorder_channels(chs_by_freq_band)
     if drop_original_signals:
         raw.drop_channels(original_ch_names)
+
+
+def differential_entropy(
+    raw: BaseRaw,
+    frequency_bands: list[tuple[float, float]] | None = None,
+    **mne_filter_kwargs,
+):
+    """Compute differential entropy (DE) features from raw EEG signals.
+
+    For each frequency band, the signal is bandpass filtered and the
+    differential entropy is computed per channel as
+    ``0.5 * log(2 * pi * e * var(signal))``, following Duan et al. (2013).
+    The result is a Raw object where each channel contains one DE value per
+    frequency band, i.e. the time axis becomes the number of frequency bands.
+
+    Parameters
+    ----------
+    raw : mne.io.Raw
+        The raw EEG signals.
+    frequency_bands : list of tuple of (float, float), optional
+        Frequency bands as (low, high) in Hz. Defaults to the five standard
+        bands: delta (1-3 Hz), theta (4-7 Hz), alpha (8-13 Hz),
+        beta (14-30 Hz), gamma (31-50 Hz).
+    mne_filter_kwargs : dict
+        Additional keyword arguments passed to ``mne.io.Raw.filter()``.
+
+    Returns
+    -------
+    mne.io.RawArray
+        Raw object with shape ``(n_channels, n_bands)`` containing DE features.
+
+    References
+    ----------
+    .. [1] Duan, R. N., Zhu, J. Y., & Lu, B. L. (2013). Differential entropy
+       feature for EEG-based emotion classification. In 2013 6th International
+       IEEE/EMBS Conference on Neural Engineering (NER).
+    """
+    import math
+
+    import mne
+    import numpy as np
+
+    if frequency_bands is None:
+        frequency_bands = [(1, 3), (4, 7), (8, 13), (14, 30), (31, 50)]
+
+    n_channels = len(raw.ch_names)
+    de_features = np.zeros((n_channels, len(frequency_bands)))
+
+    for i, (l_freq, h_freq) in enumerate(frequency_bands):
+        filtered = raw.copy()
+        filterbank(filtered, [(l_freq, h_freq)], drop_original_signals=True, **mne_filter_kwargs)
+        band_data = filtered.get_data()
+        variance = np.var(band_data, axis=1, ddof=1)
+        de_features[:, i] = 0.5 * np.log(2 * math.pi * math.e * variance)
+
+    info = mne.create_info(
+        ch_names=raw.ch_names,
+        sfreq=len(frequency_bands),
+        ch_types=raw.get_channel_types(),
+    )
+    return mne.io.RawArray(de_features, info)
