@@ -183,6 +183,7 @@ from .mne_preprocess import (  # type: ignore[attr-defined]
 )
 from .preprocess import (
     Preprocessor,
+    differential_entropy,
     exponential_moving_demean,
     exponential_moving_standardize,
     filterbank,
@@ -200,6 +201,7 @@ from .windowers import (
 _init_preprocessor_dict()
 
 __all__ = [
+    "differential_entropy",
     "exponential_moving_demean",
     "exponential_moving_standardize",
     "filterbank",
